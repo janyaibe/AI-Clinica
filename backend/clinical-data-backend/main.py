@@ -67,3 +67,6 @@ def handle_callback(request: Request):
         "message": "Token exchange successful!",
         "token_data": token_data
     }
+
+app.include_router(fitbit_endpoints.router, prefix="/api", tags=["Fitbit"])
+# Note: In a real application, you'd want to securely store the access token
