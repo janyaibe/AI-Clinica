@@ -1,16 +1,26 @@
 # main.py
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 import base64
 from api import fitbit_endpoints
 
 app = FastAPI()
 
+# 🔓 Enable CORS for frontend running on port 3000
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Adjust if deployed elsewhere
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Replace with your actual Fitbit app credentials
 CLIENT_ID = "23PWH7"
 CLIENT_SECRET = "499d9429d8872766c170b6cbdadd370f"  # Example only; keep this private!
-REDIRECT_URI = "http://localhost:8000/callback"    # Must match what's in your Fitbit app settings
+REDIRECT_URI = "http://localhost:8000/callback"    # Must match Fitbit app settings
 
 @app.get("/")
 def read_root():
@@ -61,12 +71,10 @@ def handle_callback(request: Request):
     # Parse token data (JSON)
     token_data = response.json()
 
-    # token_data typically includes:
-    #   access_token, refresh_token, scope, token_type, expires_in, user_id
     return {
         "message": "Token exchange successful!",
         "token_data": token_data
     }
 
+# Include your Fitbit routes
 app.include_router(fitbit_endpoints.router, prefix="/api", tags=["Fitbit"])
-# Note: In a real application, you'd want to securely store the access token
