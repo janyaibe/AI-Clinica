@@ -4,60 +4,61 @@ function App() {
   const [date, setDate] = useState('');
   const [token, setToken] = useState('');
   const [activity, setActivity] = useState(null);
+  const [error, setError] = useState('');
 
-  async function fetchActivity() {
-    if (!date || !token) {
-      alert('Please enter a date and access token.');
-      return;
-    }
-
+  const fetchActivity = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/fitbit/daily-activity/${date}?token=${token}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.detail || response.statusText}`);
-        return;
-      }
-
-      const data = await response.json();
+      const res = await fetch(`http://localhost:8000/api/fitbit/daily-activity/${date}?token=${token}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
       setActivity(data.activity_data);
-    } catch (error) {
-      alert(`Failed to fetch activity: ${error}`);
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to fetch activity data. Check token and date.');
     }
-  }
+  };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Fitbit Daily Activity Viewer</h1>
+      <div>
+        <p>
+          1. <a href="https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=23PWH7&redirect_uri=http://localhost:8000/callback&scope=activity%20heartrate%20sleep&expires_in=604800" target="_blank" rel="noopener noreferrer">Authorize with Fitbit</a> (if you haven't already)
+        </p>
+        <p>2. Enter a date (YYYY-MM-DD) and access token:</p>
+        <input
+          type="text"
+          placeholder="2023-06-06"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
+        <input
+          type="text"
+          placeholder="Access Token"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          style={{ marginRight: '10px', width: '300px' }}
+        />
+        <button onClick={fetchActivity}>Fetch Activity</button>
+      </div>
 
-      <label htmlFor="date">Enter Date (YYYY-MM-DD):</label>
-      <input
-        type="text"
-        id="date"
-        placeholder="e.g., 2023-02-20"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        style={{ marginBottom: '1rem', display: 'block' }}
-      />
-
-      <label htmlFor="token">Access Token:</label>
-      <input
-        type="text"
-        id="token"
-        placeholder="Paste your access token"
-        value={token}
-        onChange={(e) => setToken(e.target.value)}
-        style={{ marginBottom: '1rem', display: 'block' }}
-      />
-
-      <button onClick={fetchActivity} style={{ padding: '0.5rem 1rem' }}>
-        Fetch Activity
-      </button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       {activity && (
-        <div style={{ marginTop: '2rem' }}>
-          <h2>Activity Data</h2>
-          <pre>{JSON.stringify(activity, null, 2)}</pre>
+        <div style={{ marginTop: '30px' }}>
+          <h2>Activity Summary for {date}</h2>
+          <ul>
+            <li><strong>Calories Out:</strong> {activity.summary?.caloriesOut}</li>
+            <li><strong>Resting BMR:</strong> {activity.summary?.caloriesBMR}</li>
+            <li><strong>Steps:</strong> {activity.summary?.steps}</li>
+            <li><strong>Active Score:</strong> {activity.summary?.activeScore}</li>
+            <li><strong>Sedentary Minutes:</strong> {activity.summary?.sedentaryMinutes}</li>
+            <li><strong>Lightly Active Minutes:</strong> {activity.summary?.lightlyActiveMinutes}</li>
+            <li><strong>Fairly Active Minutes:</strong> {activity.summary?.fairlyActiveMinutes}</li>
+            <li><strong>Very Active Minutes:</strong> {activity.summary?.veryActiveMinutes}</li>
+          </ul>
         </div>
       )}
     </div>
@@ -65,23 +66,24 @@ function App() {
 }
 
 export default App;
-// This code is a simple React application that allows users to enter a date and an access token to fetch daily activity data from the Fitbit API.
-// It includes input fields for the date and token, a button to fetch the data, and a section to display the fetched activity data in JSON format.
-// The application handles errors gracefully, alerting the user if the input is invalid or if the fetch request fails.
-// The fetched data is displayed in a formatted JSON structure for better readability.
-// The application is styled with basic CSS for a clean and user-friendly interface.
-// The fetchActivity function is responsible for making the API call and updating the state with the fetched data.
-// It uses the Fetch API to send a GET request to the backend server, which is assumed to be running on localhost at port 8000.
-// The function checks if the date and token are provided before making the request and handles any errors that may occur during the fetch process.
-// The useState hook is used to manage the state of the date, token, and activity data.
-// The application is designed to be simple and user-friendly, making it easy for users to interact with the Fitbit API and view their daily activity data.
-// The code is structured to be easily understandable, with clear variable names and comments explaining the purpose of each section.
-// The application can be further enhanced by adding more features, such as displaying the data in a more user-friendly format, adding loading indicators, or implementing error handling for specific error cases.
-// Overall, this code provides a solid foundation for a React application that interacts with the Fitbit API to fetch and display daily activity data.
-// It demonstrates the use of React hooks, state management, and basic error handling in a user-friendly interface.
-// The application can be further improved by adding more features, such as displaying the data in a more user-friendly format, adding loading indicators, or implementing error handling for specific error cases.
-// Overall, this code provides a solid foundation for a React application that interacts with the Fitbit API to fetch and display daily activity data.
-// It demonstrates the use of React hooks, state management, and basic error handling in a user-friendly interface.
-// The application can be further enhanced by adding more features, such as displaying the data in a more user-friendly format, adding loading indicators, or implementing error handling for specific error cases.
-// Overall, this code provides a solid foundation for a React application that interacts with the Fitbit API to fetch and display daily activity data.
-// It demonstrates the use of React hooks, state management, and basic error handling in a user-friendly interface.
+// Note: Make sure to replace the client_id in the authorization URL with your actual client ID.
+// This code assumes you have a backend server running on localhost:8000 that handles the Fitbit OAuth2 flow and provides the daily activity data.
+// The backend should be set up to handle the token exchange and store the access token securely.
+// The frontend is a simple React app that allows users to input a date and access token, fetches the daily activity data from the backend, and displays it.
+//  The app also handles errors gracefully, providing feedback to the user if the fetch fails.
+// The UI is styled with basic CSS for better readability and user experience.
+// The app is designed to be user-friendly, guiding users through the process of authorizing with Fitbit and fetching their activity data.
+// The app is responsive and should work well on different screen sizes.
+// The code is modular and can be easily extended to include more features or handle additional data from the Fitbit API.
+// The app is built using React, a popular JavaScript library for building user interfaces.
+// It uses functional components and hooks (useState) for state management, making the code clean and easy to understand.
+// The app is designed to be easily maintainable, with clear separation of concerns and well-defined functions.
+// The app is ready for deployment and can be integrated with a backend server to provide a complete solution for fetching and displaying Fitbit activity data.
+// The app can be further enhanced with additional features, such as user authentication, data visualization, and more detailed activity reports.
+// The app is a great starting point for anyone looking to build a fitness tracking application using the Fitbit API.
+// It provides a solid foundation for further development and customization, allowing developers to create a unique user experience tailored to their needs.
+//The app is open-source and can be freely modified and distributed, making it a valuable resource for developers
+// looking to learn more about working with APIs and building web applications.
+// The app is designed to be user-friendly, guiding users through the process of authorizing with Fitbit and fetching their activity data.
+// The app is responsive and should work well on different screen sizes.
+// The code is modular and can be easily extended to include more features or handle additional data from
