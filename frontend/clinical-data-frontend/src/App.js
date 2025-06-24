@@ -1,89 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
   const [date, setDate] = useState('');
   const [token, setToken] = useState('');
   const [activity, setActivity] = useState(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('fitbitToken');
+    if (savedToken) setToken(savedToken);
+  }, []);
 
   const fetchActivity = async () => {
+    setLoading(true);
+    setError('');
+    setActivity(null);
     try {
       const res = await fetch(`http://localhost:8000/api/fitbit/daily-activity/${date}?token=${token}`);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Status ${res.status}: ${text}`);
+      }
       const data = await res.json();
       setActivity(data.activity_data);
-      setError('');
     } catch (err) {
-      console.error(err);
-      setError('Failed to fetch activity data. Check token and date.');
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleReauth = () => {
+    // Open Fitbit OAuth link in a new tab
+    window.open(
+      "https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=23PWH7&redirect_uri=http://localhost:8000/callback&scope=activity%20heartrate%20sleep&expires_in=604800",
+      "_blank"
+    );
+  };
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Fitbit Daily Activity Viewer</h1>
-      <div>
-        <p>
-          1. <a href="https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=23PWH7&redirect_uri=http://localhost:8000/callback&scope=activity%20heartrate%20sleep&expires_in=604800" target="_blank" rel="noopener noreferrer">Authorize with Fitbit</a> (if you haven't already)
+    <div style={{
+      fontFamily: 'Segoe UI, sans-serif',
+      backgroundColor: '#f7f9fc',
+      minHeight: '100vh',
+      padding: '40px'
+    }}>
+      <div style={{
+        maxWidth: '700px',
+        margin: 'auto',
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '30px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.05)'
+      }}>
+        <h1>🏃 Fitbit Activity Dashboard</h1>
+        <p style={{ color: '#555' }}>
+          Enter a date to view your Fitbit activity. No coding needed!
         </p>
-        <p>2. Enter a date (YYYY-MM-DD) and access token:</p>
-        <input
-          type="text"
-          placeholder="2023-06-06"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          style={{ marginRight: '10px' }}
-        />
-        <input
-          type="text"
-          placeholder="Access Token"
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          style={{ marginRight: '10px', width: '300px' }}
-        />
-        <button onClick={fetchActivity}>Fetch Activity</button>
-      </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {activity && (
-        <div style={{ marginTop: '30px' }}>
-          <h2>Activity Summary for {date}</h2>
-          <ul>
-            <li><strong>Calories Out:</strong> {activity.summary?.caloriesOut}</li>
-            <li><strong>Resting BMR:</strong> {activity.summary?.caloriesBMR}</li>
-            <li><strong>Steps:</strong> {activity.summary?.steps}</li>
-            <li><strong>Active Score:</strong> {activity.summary?.activeScore}</li>
-            <li><strong>Sedentary Minutes:</strong> {activity.summary?.sedentaryMinutes}</li>
-            <li><strong>Lightly Active Minutes:</strong> {activity.summary?.lightlyActiveMinutes}</li>
-            <li><strong>Fairly Active Minutes:</strong> {activity.summary?.fairlyActiveMinutes}</li>
-            <li><strong>Very Active Minutes:</strong> {activity.summary?.veryActiveMinutes}</li>
-          </ul>
+        <div style={{ marginBottom: '10px' }}>
+          {token ? (
+            <span style={{ color: 'green', fontWeight: 'bold' }}>✅ You’re authenticated</span>
+          ) : (
+            <span style={{ color: 'red', fontWeight: 'bold' }}>❌ Not authenticated</span>
+          )}
         </div>
-      )}
+
+        <button
+          onClick={handleReauth}
+          style={{
+            marginBottom: '20px',
+            padding: '8px 16px',
+            backgroundColor: '#0077cc',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          🔁 Re-authenticate with Fitbit
+        </button>
+
+        <div>
+          <input
+            type="text"
+            placeholder="Date (YYYY-MM-DD)"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            style={{ padding: '10px', marginRight: '10px', width: '250px' }}
+          />
+          <button
+            onClick={fetchActivity}
+            disabled={loading || !token}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: token ? '#0077cc' : '#ccc',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: token ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {loading ? 'Fetching...' : 'Fetch Activity'}
+          </button>
+        </div>
+
+        {loading && <p style={{ marginTop: '10px', color: '#666' }}>⏳ Loading activity data...</p>}
+        {error && <p style={{ marginTop: '10px', color: 'red' }}>❌ Error: {error}</p>}
+
+        {activity && (
+          <div style={{
+            marginTop: '30px',
+            padding: '20px',
+            backgroundColor: '#f0f8ff',
+            borderRadius: '8px',
+            border: '1px solid #cce5ff'
+          }}>
+            <h2>📅 Activity Summary: {date}</h2>
+            <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
+              <li><strong>Calories Out:</strong> {activity.summary?.caloriesOut}</li>
+              <li><strong>Resting BMR:</strong> {activity.summary?.caloriesBMR}</li>
+              <li><strong>Steps:</strong> {activity.summary?.steps}</li>
+              <li><strong>Active Score:</strong> {activity.summary?.activeScore}</li>
+              <li><strong>Sedentary Minutes:</strong> {activity.summary?.sedentaryMinutes}</li>
+              <li><strong>Lightly Active Minutes:</strong> {activity.summary?.lightlyActiveMinutes}</li>
+              <li><strong>Fairly Active Minutes:</strong> {activity.summary?.fairlyActiveMinutes}</li>
+              <li><strong>Very Active Minutes:</strong> {activity.summary?.veryActiveMinutes}</li>
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default App;
-// Note: Make sure to replace the client_id in the authorization URL with your actual client ID.
-// This code assumes you have a backend server running on localhost:8000 that handles the Fitbit OAuth2 flow and provides the daily activity data.
-// The backend should be set up to handle the token exchange and store the access token securely.
-// The frontend is a simple React app that allows users to input a date and access token, fetches the daily activity data from the backend, and displays it.
-//  The app also handles errors gracefully, providing feedback to the user if the fetch fails.
-// The UI is styled with basic CSS for better readability and user experience.
-// The app is designed to be user-friendly, guiding users through the process of authorizing with Fitbit and fetching their activity data.
-// The app is responsive and should work well on different screen sizes.
-// The code is modular and can be easily extended to include more features or handle additional data from the Fitbit API.
-// The app is built using React, a popular JavaScript library for building user interfaces.
-// It uses functional components and hooks (useState) for state management, making the code clean and easy to understand.
-// The app is designed to be easily maintainable, with clear separation of concerns and well-defined functions.
-// The app is ready for deployment and can be integrated with a backend server to provide a complete solution for fetching and displaying Fitbit activity data.
-// The app can be further enhanced with additional features, such as user authentication, data visualization, and more detailed activity reports.
-// The app is a great starting point for anyone looking to build a fitness tracking application using the Fitbit API.
-// It provides a solid foundation for further development and customization, allowing developers to create a unique user experience tailored to their needs.
-//The app is open-source and can be freely modified and distributed, making it a valuable resource for developers
-// looking to learn more about working with APIs and building web applications.
-// The app is designed to be user-friendly, guiding users through the process of authorizing with Fitbit and fetching their activity data.
-// The app is responsive and should work well on different screen sizes.
-// The code is modular and can be easily extended to include more features or handle additional data from
