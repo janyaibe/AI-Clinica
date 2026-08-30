@@ -1,10 +1,17 @@
 # main.py
 
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 import requests
 import base64
-from api import fitbit_endpoints
+from urllib.parse import quote
+from api import fitbit_endpoints, connectors_endpoints
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -17,10 +24,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Replace with your actual Fitbit app credentials
-CLIENT_ID = "23PWH7"
-CLIENT_SECRET = "499d9429d8872766c170b6cbdadd370f"  # Example only; keep this private!
-REDIRECT_URI = "http://localhost:8000/callback"    # Must match Fitbit app settings
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+# Fitbit app credentials, loaded from .env (never commit real values)
+CLIENT_ID = _require_env("FITBIT_CLIENT_ID")
+CLIENT_SECRET = _require_env("FITBIT_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("FITBIT_REDIRECT_URI", "http://localhost:8000/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 @app.get("/")
 def read_root():
@@ -38,7 +54,7 @@ def handle_callback(request: Request):
     """
     code = request.query_params.get("code")
     if not code:
-        return {"error": "No authorization code provided by Fitbit."}
+        return RedirectResponse(f"{FRONTEND_URL}/?fitbit_error={quote('No authorization code provided by Fitbit.')}")
 
     # Build the Authorization header (Basic Auth)
     auth_str = f"{CLIENT_ID}:{CLIENT_SECRET}"
@@ -62,19 +78,14 @@ def handle_callback(request: Request):
     response = requests.post(token_url, headers=headers, data=data)
 
     if response.status_code != 200:
-        return {
-            "error": "Token exchange failed.",
-            "status_code": response.status_code,
-            "response_text": response.text
-        }
+        return RedirectResponse(f"{FRONTEND_URL}/?fitbit_error={quote('Token exchange failed: ' + response.text)}")
 
-    # Parse token data (JSON)
+    # Parse token data (JSON) and hand the access token back to the frontend
     token_data = response.json()
+    access_token = token_data.get("access_token", "")
 
-    return {
-        "message": "Token exchange successful!",
-        "token_data": token_data
-    }
+    return RedirectResponse(f"{FRONTEND_URL}/?fitbit_token={quote(access_token)}")
 
 # Include your Fitbit routes
 app.include_router(fitbit_endpoints.router, prefix="/api", tags=["Fitbit"])
+app.include_router(connectors_endpoints.router, prefix="/api", tags=["Connectors"])
